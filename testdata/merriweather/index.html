@@ -1,0 +1,40 @@
+<html><head>
+  <title>Font style matcher</title>
+
+  <meta charset="utf-8">
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Merriweather:300,300i,400,400i,700,700i,900,900i"></head>
+  <style>
+    #webfontOutput {
+      font-family: Merriweather, Georgia;
+    }
+  </style>
+<body>
+  <div class="container">
+    <h1>Font style matcher</h1>
+    <p>
+      If you're using a web font, you're bound to see a flash of unstyled text (or FOUC),
+      between the initial render of your websafe font and the webfont that you've chosen.
+      This usually results in a jarring shift in layout, due to
+      sizing discrepancies between the two fonts. To minimize this
+      discrepancy, you can try to match the fallback font and the intended webfont’s
+      x-heights and widths <a href="http://helenvholmes.com/writing/type-is-your-right">[1]</a>.
+      This tool helps you do <b><i>exactly</i></b> that.
+    </p>
+    <br>
+    <div class="output">
+      <div id="webfontOutput">The fox jumped over the lazy dog, the scoundrel.
+        <br><br>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+      </div>
+    </div>
+
+    <footer>
+      made with ✨ by <a href="https://twitter.com/notwaldorf">monica</a>. inspired
+        by <a href="https://twitter.com/helenvholmes">helen's</a> blog <a href="http://helenvholmes.com/writing/type-is-your-right">post</a>.
+        find this on <a href="https://github.com/notwaldorf/font-style-matcher">github</a>
+    </footer>
+  </div>
+  <div class="dropAlert" id="dropAlert">Drop it!</div>
+</body></html>

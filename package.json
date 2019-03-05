@@ -1,0 +1,41 @@
+{
+  "license": "BSD-3-Clause",
+  "devDependencies": {
+    "assetgraph": "^5.7.1",
+    "eslint": "^5.1.0",
+    "eslint-config-prettier": "^4.0.0",
+    "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-mocha": "^5.2.1",
+    "eslint-plugin-node": "^8.0.1",
+    "eslint-plugin-promise": "^4.0.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "mocha": "^6.0.2",
+    "nyc": "^13.3.0",
+    "prettier": "~1.16.0",
+    "puppeteer": "^1.12.2",
+    "sinon": "^7.2.4",
+    "unexpected": "^11.1.0",
+    "unexpected-sinon": "^10.11.1"
+  },
+  "files": [
+    "dist",
+    "lib"
+  ],
+  "scripts": {
+    "lint": "eslint . && prettier --check '**/*.js'",
+    "test": "mocha",
+    "ci": "npm run dist && npm run coverage && npm run lint"
+  },
+  "dependencies": {
+    "chance-generators": "^3.5.1",
+    "font-tracer": "^1.0.1",
+    "resemblejs": "^3.0.2",
+    "urltools": "^0.4.1"
+  },
+  "nyc": {
+    "include": [
+      "lib/**"
+    ]
+  }
+}
