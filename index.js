@@ -3,6 +3,7 @@
 const urlTools = require('urltools');
 const puppeteer = require('puppeteer');
 const pathModule = require('path');
+const writeFile = require('util').promisify(require('fs').writeFile);
 const compareImages = require('resemblejs/compareImages');
 const simulatedAnnealing = require('./simulatedAnnealing');
 const getWordPositions = require('./getWordPositions');
@@ -71,7 +72,8 @@ function stringifyProp(prop, value) {
 
 function stateToStyle(state) {
   const style = {
-    fontFamily: 'Georgia'
+    fontFamily: 'Georgia',
+    mixBlendMode: 'screen'
   };
   for (const prop of Object.keys(incrementByProp)) {
     style[prop] = stringifyProp(prop, state[prop]);
@@ -124,6 +126,14 @@ async function optimize(page, elementHandles) {
       return newState;
     },
     getTemp,
+    async onNewBestState(bestState, bestScore) {
+      console.log('new best', stateToStyle(bestState));
+      await writeFile('best.png', await page.screenshot());
+      page.evaluate(
+        bestScore => (document.title = `Best: ${bestScore}`),
+        bestScore
+      );
+    },
     async getEnergy(state) {
       const style = stateToStyle(state);
       let sumDistances = 0;
