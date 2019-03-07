@@ -8,13 +8,13 @@ module.exports = async function({
   getTemp,
   getEnergy
 } = {}) {
-  var currentTemp = tempMax;
+  let currentTemp = tempMax;
 
-  var lastState = initialState;
-  var lastEnergy = await getEnergy(lastState);
+  let lastState = initialState;
+  let lastEnergy = await getEnergy(lastState);
 
-  var bestState = lastState;
-  var bestEnergy = lastEnergy;
+  let bestState = lastState;
+  let bestEnergy = lastEnergy;
 
   while (currentTemp > tempMin) {
     const currentState = newState(lastState);
