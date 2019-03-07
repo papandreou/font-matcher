@@ -5,6 +5,7 @@ const puppeteer = require('puppeteer');
 const pathModule = require('path');
 const compareImages = require('resemblejs/compareImages');
 const simulatedAnnealing = require('./simulatedAnnealing');
+const getWordPositions = require('./getWordPositions');
 const { pickone } = require('chance-generators');
 
 async function transferResults(jsHandle) {
@@ -78,10 +79,25 @@ function stateToStyle(state) {
   return style;
 }
 
+function distance(a, b) {
+  return (
+    Math.sqrt((a.left - b.left) ** 2 + (a.top - b.top) ** 2) +
+    Math.sqrt((a.right - b.right) ** 2 + (a.bottom - b.bottom) ** 2)
+  );
+}
+
 async function optimize(page, elementHandles) {
   const referenceScreenshot = await page.screenshot();
   const pickPropertyToMutate = pickone(Object.keys(incrementByProp));
-  // const pickSign = pickone([-1, 1]);
+  await page.evaluate(imageUrl => {
+    document.documentElement.style.backgroundImage = imageUrl;
+  }, `url(data:image/png;base64,${referenceScreenshot.toString('base64')})`);
+
+  const pickSign = pickone([-1, 1]);
+
+  const referenceWordPositions = await Promise.all(
+    elementHandles.map(elementHandle => getWordPositions(page, elementHandle))
+  );
 
   const initialState = {};
   for (const [prop, numSteps] of Object.entries(numStepsByProp)) {
@@ -99,7 +115,7 @@ async function optimize(page, elementHandles) {
       let newValue;
       do {
         prop = pickPropertyToMutate.first();
-        newValue = state[prop] + pickone([-1, 1]).first();
+        newValue = state[prop] + pickSign.first();
       } while (
         newValue >= boundsByProp[prop][0] &&
         newValue <= boundsByProp[prop][1]
@@ -110,21 +126,29 @@ async function optimize(page, elementHandles) {
     getTemp,
     async getEnergy(state) {
       const style = stateToStyle(state);
-      for (const elementHandle of elementHandles) {
-        page.evaluate(
-          (element, style) => {
-            Object.assign(element.style, style);
-          },
+      let sumDistances = 0;
+      for (const [i, elementHandle] of elementHandles.entries()) {
+        await page.evaluate(
+          (element, style) => Object.assign(element.style, style),
           elementHandle,
           style
         );
+        const wordPositions = await getWordPositions(page, elementHandle);
+
+        for (const [j, wordPosition] of wordPositions.entries()) {
+          sumDistances += distance(wordPosition, referenceWordPositions[i][j]);
+        }
       }
+
+      return sumDistances;
+
+      // The image comparison is quite slow, skip it for now:
       const { rawMisMatchPercentage } = await compareImages(
         await page.screenshot(),
         referenceScreenshot,
         resembleJsCompareOptions
       );
-      return rawMisMatchPercentage;
+      return sumDistances + rawMisMatchPercentage;
     }
   });
 }
