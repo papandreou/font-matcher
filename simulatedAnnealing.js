@@ -6,7 +6,8 @@ module.exports = async function({
   tempMin,
   newState,
   getTemp,
-  getEnergy
+  getEnergy,
+  onNewBestState
 } = {}) {
   let currentTemp = tempMax;
 
@@ -35,6 +36,9 @@ module.exports = async function({
     if (bestEnergy > lastEnergy) {
       bestState = lastState;
       bestEnergy = lastEnergy;
+      if (onNewBestState) {
+        await onNewBestState(bestState, bestEnergy);
+      }
     }
     currentTemp = getTemp(currentTemp);
   }
