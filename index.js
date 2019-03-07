@@ -39,7 +39,7 @@ function getTemp(prevTemperature) {
   return prevTemperature - 0.001;
 }
 
-const increments = {
+const incrementByProp = {
   fontSize: 1,
   lineHeight: 0.05,
   fontWeight: 100,
@@ -47,7 +47,7 @@ const increments = {
   wordSpacing: 0.05
 };
 
-const bounds = {
+const boundsByProp = {
   fontSize: [5, 50],
   lineHeight: [0, 5],
   fontWeight: [100, 900],
@@ -55,42 +55,68 @@ const bounds = {
   wordSpacing: [-2, 2]
 };
 
+const numStepsByProp = {};
+for (const [prop, [min, max]] of Object.entries(boundsByProp)) {
+  numStepsByProp[prop] = (max - min) / incrementByProp[prop] + 1;
+}
+
+const pxProps = new Set(['fontSize', 'letterSpacing']);
+
+function stringifyProp(prop, value) {
+  const numericalValue = boundsByProp[prop][0] + incrementByProp[prop] * value;
+  const unit = pxProps.has(prop) ? 'px' : '';
+  return `${numericalValue.toFixed(4)}${unit}`;
+}
+
+function stateToStyle(state) {
+  const style = {
+    fontFamily: 'Georgia'
+  };
+  for (const prop of Object.keys(incrementByProp)) {
+    style[prop] = stringifyProp(prop, state[prop]);
+  }
+  return style;
+}
+
 async function optimize(page, elementHandles) {
   const referenceScreenshot = await page.screenshot();
-  const pickPropertyToMutate = pickone(Object.keys(increments));
-  const pickSign = pickone([-1, 1]);
+  const pickPropertyToMutate = pickone(Object.keys(incrementByProp));
+  // const pickSign = pickone([-1, 1]);
 
-  var result = await simulatedAnnealing({
-    initialState: {
-      fontSize: 18,
-      lineHeight: 1.4,
-      fontWeight: 300,
-      letterSpacing: 0.7,
-      wordSpacing: -0.15
-    },
+  const initialState = {};
+  for (const [prop, numSteps] of Object.entries(numStepsByProp)) {
+    // initialState[prop] = Math.round(Math.random() * numSteps);
+    initialState[prop] = numSteps >> 1;
+  }
+
+  const bestState = await simulatedAnnealing({
+    initialState,
     tempMax: 15,
     tempMin: 0.001,
     newState(state) {
       const newState = { ...state };
-      const propertyNameToMutate = pickPropertyToMutate.first();
-      newState[propertyNameToMutate] +=
-        pickSign.first() * increments[propertyNameToMutate];
+      let prop;
+      let newValue;
+      do {
+        prop = pickPropertyToMutate.first();
+        newValue = state[prop] + pickone([-1, 1]).first();
+      } while (
+        newValue >= boundsByProp[prop][0] &&
+        newValue <= boundsByProp[prop][1]
+      );
+      newState[prop] = newValue;
       return newState;
     },
     getTemp,
     async getEnergy(state) {
+      const style = stateToStyle(state);
       for (const elementHandle of elementHandles) {
         page.evaluate(
-          (element, { fontSize, letterSpacing, wordSpacing, ...rest }) => {
-            Object.assign(element.style, {
-              fontFamily: 'Georgia',
-              fontSize: `${fontSize}px`,
-              letterSpacing: `${letterSpacing}px`,
-              ...rest
-            });
+          (element, style) => {
+            Object.assign(element.style, style);
           },
           elementHandle,
-          state
+          style
         );
       }
       const { rawMisMatchPercentage } = await compareImages(
