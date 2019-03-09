@@ -124,10 +124,7 @@ async function optimize(page, elementHandles) {
       do {
         prop = pickPropertyToMutate.first();
         newValue = state[prop] + pickSign.first();
-      } while (
-        newValue >= boundsByProp[prop][0] &&
-        newValue <= boundsByProp[prop][1]
-      );
+      } while (newValue < 0 || newValue > numStepsByProp[prop]);
       newState[prop] = newValue;
       return newState;
     },
