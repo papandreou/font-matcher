@@ -67,7 +67,13 @@ const pxProps = new Set(['fontSize', 'letterSpacing']);
 function stringifyProp(prop, value) {
   const numericalValue = boundsByProp[prop][0] + incrementByProp[prop] * value;
   const unit = pxProps.has(prop) ? 'px' : '';
-  return `${numericalValue.toFixed(4)}${unit}`;
+  let numStr;
+  if (prop === 'fontWeight') {
+    return String(numericalValue);
+  } else {
+    numStr = numericalValue.toFixed(4);
+  }
+  return `${numStr}${unit}`;
 }
 
 function stateToStyle(state) {
