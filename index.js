@@ -102,7 +102,6 @@ async function optimize(page, elementHandles) {
   }, `url(data:image/png;base64,${referenceScreenshot.toString('base64')})`);
 
   const pickSign = pickone([-1, 1]);
-
   const referenceWordPositions = await Promise.all(
     elementHandles.map(elementHandle => getWordPositions(page, elementHandle))
   );
@@ -175,7 +174,7 @@ async function optimize(page, elementHandles) {
     const fileName = pathModule.resolve(
       __dirname,
       'testdata',
-      'merriweather',
+      'multipleSizes',
       'index.html'
     );
 
