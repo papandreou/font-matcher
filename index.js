@@ -8,6 +8,7 @@ const _ = require('lodash');
 const compareImages = require('resemblejs/compareImages');
 const simulatedAnnealing = require('./simulatedAnnealing');
 const getWordPositions = require('./getWordPositions');
+const shorthandify = require('./shorthandify');
 const { pickone, integer } = require('chance-generators');
 
 const fontRelatedProps = [
@@ -85,6 +86,7 @@ function stringifyProp(prop, value, boundsByProp) {
 function stateToStyle(state, { boundsByProp, computedStyle }) {
   const style = {
     fontFamily: 'Georgia',
+    fontStyle: computedStyle.fontStyle,
     mixBlendMode: 'screen'
   };
   for (const prop of Object.keys(incrementByProp)) {
@@ -181,7 +183,7 @@ async function optimize(page, traceGroups) {
       console.log(
         'new best',
         bestState.map((traceGroupState, i) =>
-          stateToStyle(traceGroupState, traceGroups[i])
+          shorthandify(stateToStyle(traceGroupState, traceGroups[i]))
         )
       );
       await writeFile('best.png', await page.screenshot());
