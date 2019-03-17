@@ -82,7 +82,7 @@ function stringifyProp(prop, value) {
   if (prop === 'fontWeight') {
     return String(numericalValue);
   } else {
-    numStr = numericalValue.toFixed(4);
+    numStr = numericalValue.toFixed(4).replace(/(\.[1-9]*)0+$/, '$1');
   }
   return `${numStr}${unit}`;
 }
