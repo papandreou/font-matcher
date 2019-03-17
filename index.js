@@ -86,8 +86,7 @@ function stringifyProp(prop, value, boundsByProp) {
 function stateToStyle(state, { boundsByProp, computedStyle }) {
   const style = {
     fontFamily: 'Georgia',
-    fontStyle: computedStyle.fontStyle,
-    mixBlendMode: 'screen'
+    fontStyle: computedStyle.fontStyle
   };
   for (const prop of Object.keys(incrementByProp)) {
     style[prop] = stringifyProp(prop, state[prop], boundsByProp);
