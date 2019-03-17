@@ -54,13 +54,18 @@ function getTemp(prevTemperature) {
 
 const incrementByProp = {
   fontSize: 1,
-  lineHeight: 0.05,
+  lineHeight: 1,
   fontWeight: 100,
   letterSpacing: 0.05,
   wordSpacing: 0.05
 };
 
-const pxProps = new Set(['fontSize', 'letterSpacing', 'wordSpacing']);
+const pxProps = new Set([
+  'fontSize',
+  'lineHeight',
+  'letterSpacing',
+  'wordSpacing'
+]);
 
 function stringifyProp(prop, value, boundsByProp) {
   const numericalValue = boundsByProp[prop][0] + incrementByProp[prop] * value;
@@ -112,6 +117,12 @@ async function optimize(page, traceGroups) {
     );
 
     const fontSize = parseFloat(traceGroup.computedStyle.fontSize);
+    let lineHeight = traceGroup.computedStyle.lineHeight;
+    if (lineHeight === 'normal') {
+      lineHeight = Math.round(1.2 * fontSize);
+    } else {
+      lineHeight = parseFloat(lineHeight);
+    }
 
     let letterSpacing = traceGroup.computedStyle.letterSpacing;
     if (letterSpacing === 'normal') {
@@ -128,7 +139,7 @@ async function optimize(page, traceGroups) {
 
     traceGroup.boundsByProp = {
       fontSize: [Math.round(fontSize / 2), Math.round(fontSize * 2)],
-      lineHeight: [0, 5],
+      lineHeight: [Math.round(lineHeight / 2), Math.round(lineHeight * 2)],
       fontWeight: [100, 900],
       letterSpacing: [letterSpacing - 3, letterSpacing + 3],
       wordSpacing: [wordSpacing - 3, wordSpacing + 3]
