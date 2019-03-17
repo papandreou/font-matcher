@@ -82,7 +82,7 @@ function stringifyProp(prop, value, boundsByProp) {
   return `${numStr}${unit}`;
 }
 
-function stateToStyle(state, boundsByProp) {
+function stateToStyle(state, { boundsByProp, computedStyle }) {
   const style = {
     fontFamily: 'Georgia',
     mixBlendMode: 'screen'
@@ -181,7 +181,7 @@ async function optimize(page, traceGroups) {
       console.log(
         'new best',
         bestState.map((traceGroupState, i) =>
-          stateToStyle(traceGroupState, traceGroups[i].boundsByProp)
+          stateToStyle(traceGroupState, traceGroups[i])
         )
       );
       await writeFile('best.png', await page.screenshot());
@@ -192,11 +192,10 @@ async function optimize(page, traceGroups) {
     },
     async getEnergy(state) {
       let sumDistances = 0;
-      for (const [
-        i,
-        { elementHandles, referenceWordPositions, boundsByProp }
-      ] of traceGroups.entries()) {
-        const style = stateToStyle(state[i], boundsByProp);
+      for (const [i, traceGroup] of traceGroups.entries()) {
+        const { elementHandles, referenceWordPositions } = traceGroup;
+
+        const style = stateToStyle(state[i], traceGroup);
         for (const [j, elementHandle] of elementHandles.entries()) {
           await page.evaluate(
             (element, style) => Object.assign(element.style, style),
