@@ -60,22 +60,9 @@ const incrementByProp = {
   wordSpacing: 0.05
 };
 
-const boundsByProp = {
-  fontSize: [5, 50],
-  lineHeight: [0, 5],
-  fontWeight: [100, 900],
-  letterSpacing: [-2, 2],
-  wordSpacing: [-2, 2]
-};
+const pxProps = new Set(['fontSize', 'letterSpacing', 'wordSpacing']);
 
-const numStepsByProp = {};
-for (const [prop, [min, max]] of Object.entries(boundsByProp)) {
-  numStepsByProp[prop] = (max - min) / incrementByProp[prop] + 1;
-}
-
-const pxProps = new Set(['fontSize', 'letterSpacing']);
-
-function stringifyProp(prop, value) {
+function stringifyProp(prop, value, boundsByProp) {
   const numericalValue = boundsByProp[prop][0] + incrementByProp[prop] * value;
   const unit = pxProps.has(prop) ? 'px' : '';
   let numStr;
@@ -87,13 +74,13 @@ function stringifyProp(prop, value) {
   return `${numStr}${unit}`;
 }
 
-function stateToStyle(state) {
+function stateToStyle(state, boundsByProp) {
   const style = {
     fontFamily: 'Georgia',
     mixBlendMode: 'screen'
   };
   for (const prop of Object.keys(incrementByProp)) {
-    style[prop] = stringifyProp(prop, state[prop]);
+    style[prop] = stringifyProp(prop, state[prop], boundsByProp);
   }
   return style;
 }
@@ -120,10 +107,23 @@ async function optimize(page, traceGroups) {
         getWordPositions(page, elementHandle)
       )
     );
+
+    traceGroup.boundsByProp = {
+      fontSize: [5, 50],
+      lineHeight: [0, 5],
+      fontWeight: [100, 900],
+      letterSpacing: [-2, 2],
+      wordSpacing: [-2, 2]
+    };
+
+    traceGroup.numStepsByProp = {};
+    for (const [prop, [min, max]] of Object.entries(traceGroup.boundsByProp)) {
+      traceGroup.numStepsByProp[prop] = (max - min) / incrementByProp[prop] + 1;
+    }
   }
-  const initialState = traceGroups.map(() => {
+  const initialState = traceGroups.map(traceGroup => {
     const initialStateForGroup = {};
-    for (const [prop, numSteps] of Object.entries(numStepsByProp)) {
+    for (const [prop, numSteps] of Object.entries(traceGroup.numStepsByProp)) {
       // initialState[prop] = Math.round(Math.random() * numSteps);
       initialStateForGroup[prop] = numSteps >> 1;
     }
@@ -137,18 +137,24 @@ async function optimize(page, traceGroups) {
     newState(state) {
       const newState = state.map(stateItem => ({ ...stateItem }));
       const traceGroupNumber = pickTraceGroupNumber.first();
+      const traceGroup = traceGroups[traceGroupNumber];
       let prop;
       let newValue;
       do {
         prop = pickPropertyToMutate.first();
         newValue = state[traceGroupNumber][prop] + pickSign.first();
-      } while (newValue < 0 || newValue > numStepsByProp[prop]);
+      } while (newValue < 0 || newValue > traceGroup.numStepsByProp[prop]);
       newState[traceGroupNumber][prop] = newValue;
       return newState;
     },
     getTemp,
     async onNewBestState(bestState, bestScore) {
-      console.log('new best', bestState.map(stateToStyle));
+      console.log(
+        'new best',
+        bestState.map((traceGroupState, i) =>
+          stateToStyle(traceGroupState, traceGroups[i].boundsByProp)
+        )
+      );
       await writeFile('best.png', await page.screenshot());
       page.evaluate(
         bestScore => (document.title = `Best: ${bestScore}`),
@@ -159,9 +165,9 @@ async function optimize(page, traceGroups) {
       let sumDistances = 0;
       for (const [
         i,
-        { elementHandles, referenceWordPositions }
+        { elementHandles, referenceWordPositions, boundsByProp }
       ] of traceGroups.entries()) {
-        const style = stateToStyle(state[i]);
+        const style = stateToStyle(state[i], boundsByProp);
         for (const [j, elementHandle] of elementHandles.entries()) {
           await page.evaluate(
             (element, style) => Object.assign(element.style, style),
