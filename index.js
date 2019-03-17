@@ -111,8 +111,10 @@ async function optimize(page, traceGroups) {
       )
     );
 
+    const fontSize = parseFloat(traceGroup.originalStyle.fontSize);
+
     traceGroup.boundsByProp = {
-      fontSize: [5, 50],
+      fontSize: [Math.round(fontSize / 2), Math.round(fontSize * 2)],
       lineHeight: [0, 5],
       fontWeight: [100, 900],
       letterSpacing: [-2, 2],
