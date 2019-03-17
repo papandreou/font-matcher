@@ -30,19 +30,11 @@ async function getWordPositions(page, elementHandle) {
     const wordPositions = [];
     for (const textNode of generateTextNodes(element)) {
       for (const range of generateWordRanges(textNode)) {
-        // selection.removeAllRanges();
-        // selection.addRange(range);
-        const {
-          width,
-          height,
-          left,
-          right,
-          top,
-          bottom,
-          x,
-          y
-        } = range.getClientRects()[0];
-        wordPositions.push({ width, height, left, right, top, bottom, x, y });
+        const clientRects = range.getClientRects()[0];
+        if (clientRects) {
+          const { width, height, left, right, top, bottom, x, y } = clientRects;
+          wordPositions.push({ width, height, left, right, top, bottom, x, y });
+        }
       }
     }
     return wordPositions;

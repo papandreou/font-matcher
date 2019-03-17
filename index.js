@@ -4,10 +4,21 @@ const urlTools = require('urltools');
 const puppeteer = require('puppeteer');
 const pathModule = require('path');
 const writeFile = require('util').promisify(require('fs').writeFile);
+const _ = require('lodash');
 const compareImages = require('resemblejs/compareImages');
 const simulatedAnnealing = require('./simulatedAnnealing');
 const getWordPositions = require('./getWordPositions');
-const { pickone } = require('chance-generators');
+const { pickone, integer } = require('chance-generators');
+
+const fontRelatedProps = [
+  'font-family',
+  'font-style',
+  'font-weight',
+  'font-size',
+  'word-spacing',
+  'letter-spacing',
+  'line-height'
+];
 
 async function transferResults(jsHandle) {
   const results = await jsHandle.jsonValue();
@@ -94,42 +105,50 @@ function distance(a, b) {
   );
 }
 
-async function optimize(page, elementHandles) {
+async function optimize(page, traceGroups) {
   const referenceScreenshot = await page.screenshot();
   const pickPropertyToMutate = pickone(Object.keys(incrementByProp));
   await page.evaluate(imageUrl => {
     document.documentElement.style.backgroundImage = imageUrl;
   }, `url(data:image/png;base64,${referenceScreenshot.toString('base64')})`);
 
+  const pickTraceGroupNumber = integer({ min: 0, max: traceGroups.length - 1 });
   const pickSign = pickone([-1, 1]);
-  const referenceWordPositions = await Promise.all(
-    elementHandles.map(elementHandle => getWordPositions(page, elementHandle))
-  );
-
-  const initialState = {};
-  for (const [prop, numSteps] of Object.entries(numStepsByProp)) {
-    // initialState[prop] = Math.round(Math.random() * numSteps);
-    initialState[prop] = numSteps >> 1;
+  for (const traceGroup of traceGroups) {
+    traceGroup.referenceWordPositions = await Promise.all(
+      traceGroup.elementHandles.map(elementHandle =>
+        getWordPositions(page, elementHandle)
+      )
+    );
   }
+  const initialState = traceGroups.map(() => {
+    const initialStateForGroup = {};
+    for (const [prop, numSteps] of Object.entries(numStepsByProp)) {
+      // initialState[prop] = Math.round(Math.random() * numSteps);
+      initialStateForGroup[prop] = numSteps >> 1;
+    }
+    return initialStateForGroup;
+  });
 
   const bestState = await simulatedAnnealing({
     initialState,
     tempMax: 15,
     tempMin: 0.001,
     newState(state) {
-      const newState = { ...state };
+      const newState = state.map(stateItem => ({ ...stateItem }));
+      const traceGroupNumber = pickTraceGroupNumber.first();
       let prop;
       let newValue;
       do {
         prop = pickPropertyToMutate.first();
-        newValue = state[prop] + pickSign.first();
+        newValue = state[traceGroupNumber][prop] + pickSign.first();
       } while (newValue < 0 || newValue > numStepsByProp[prop]);
-      newState[prop] = newValue;
+      newState[traceGroupNumber][prop] = newValue;
       return newState;
     },
     getTemp,
     async onNewBestState(bestState, bestScore) {
-      console.log('new best', stateToStyle(bestState));
+      console.log('new best', bestState.map(stateToStyle));
       await writeFile('best.png', await page.screenshot());
       page.evaluate(
         bestScore => (document.title = `Best: ${bestScore}`),
@@ -137,18 +156,26 @@ async function optimize(page, elementHandles) {
       );
     },
     async getEnergy(state) {
-      const style = stateToStyle(state);
       let sumDistances = 0;
-      for (const [i, elementHandle] of elementHandles.entries()) {
-        await page.evaluate(
-          (element, style) => Object.assign(element.style, style),
-          elementHandle,
-          style
-        );
-        const wordPositions = await getWordPositions(page, elementHandle);
+      for (const [
+        i,
+        { elementHandles, referenceWordPositions }
+      ] of traceGroups.entries()) {
+        const style = stateToStyle(state[i]);
+        for (const [j, elementHandle] of elementHandles.entries()) {
+          await page.evaluate(
+            (element, style) => Object.assign(element.style, style),
+            elementHandle,
+            style
+          );
+          const wordPositions = await getWordPositions(page, elementHandle);
 
-        for (const [j, wordPosition] of wordPositions.entries()) {
-          sumDistances += distance(wordPosition, referenceWordPositions[i][j]);
+          for (const [k, wordPosition] of wordPositions.entries()) {
+            sumDistances += distance(
+              wordPosition,
+              referenceWordPositions[j][k]
+            );
+          }
         }
       }
 
@@ -193,16 +220,38 @@ async function optimize(page, elementHandles) {
     const jsHandle = await page.evaluateHandle(
       /* global fontTracer */
       /* istanbul ignore next */
-      () => fontTracer(document)
+      propsToReturn =>
+        fontTracer(document, {
+          deduplicate: false,
+          propsToReturn
+        }),
+      fontRelatedProps
     );
     const traces = await transferResults(jsHandle);
 
-    const merriweatherTraces = traces.filter(trace =>
-      /\bMerriweather\b/i.test(trace.props['font-family'])
-    );
-    const elementHandles = merriweatherTraces.map(trace => trace.node);
-    await optimize(page, elementHandles);
-    // const boundingBox = await elementHandle.boundingBox();
+    for (const trace of traces) {
+      const computedStyle = await page.evaluate(
+        node => ({ ...window.getComputedStyle(node) }),
+        trace.node
+      );
+      trace.originalStyle = _.fromPairs(
+        fontRelatedProps.map(prop => [prop, computedStyle[_.camelCase(prop)]])
+      );
+    }
+    const traceGroups = Object.values(
+      _.groupBy(traces, trace =>
+        Object.values(trace.originalStyle).join('\x1e')
+      )
+    )
+      .map(traces => ({
+        originalStyle: traces[0].originalStyle,
+        elementHandles: _.map(traces, 'node'),
+        traces
+      }))
+      .filter(traceGroup =>
+        /merriweather/i.test(traceGroup.originalStyle['font-family'])
+      );
+    await optimize(page, traceGroups);
   } finally {
     await browser.close();
   }
