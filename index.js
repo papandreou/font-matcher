@@ -181,6 +181,7 @@ async function optimize(page, traceGroups) {
     async onNewBestState(bestState, bestScore) {
       console.log(
         'new best',
+        bestScore,
         bestState.map((traceGroupState, i) =>
           shorthandify(stateToStyle(traceGroupState, traceGroups[i]))
         )
