@@ -130,7 +130,7 @@ async function optimize(page, traceGroups) {
     return initialStateForGroup;
   });
 
-  const bestState = await simulatedAnnealing({
+  return simulatedAnnealing({
     initialState,
     tempMax: 15,
     tempMin: 0.001,
