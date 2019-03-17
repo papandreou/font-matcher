@@ -240,8 +240,9 @@ async function optimize(page, traceGroups) {
         node => ({ ...window.getComputedStyle(node) }),
         trace.node
       );
-      trace.originalStyle = _.fromPairs(
-        fontRelatedProps.map(prop => [prop, computedStyle[_.camelCase(prop)]])
+      trace.originalStyle = _.pick(
+        computedStyle,
+        fontRelatedProps.map(_.camelCase)
       );
     }
     const traceGroups = Object.values(
@@ -255,8 +256,11 @@ async function optimize(page, traceGroups) {
         traces
       }))
       .filter(traceGroup =>
-        /merriweather/i.test(traceGroup.originalStyle['font-family'])
+        /merriweather/i.test(traceGroup.originalStyle.fontFamily)
       );
+    if (traceGroups.length === 0) {
+      throw new Error('No webfonts to optimize');
+    }
     await optimize(page, traceGroups);
   } finally {
     await browser.close();
