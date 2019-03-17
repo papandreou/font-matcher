@@ -69,7 +69,10 @@ function stringifyProp(prop, value, boundsByProp) {
   if (prop === 'fontWeight') {
     return String(numericalValue);
   } else {
-    numStr = numericalValue.toFixed(4).replace(/(\.[1-9]*)0+$/, '$1');
+    numStr = numericalValue
+      .toFixed(4)
+      .replace(/(\.(?:[0-9]*[1-9])?)0+$/, '$1')
+      .replace(/\.$/, '');
   }
   return `${numStr}${unit}`;
 }
