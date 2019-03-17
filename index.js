@@ -111,15 +111,15 @@ async function optimize(page, traceGroups) {
       )
     );
 
-    const fontSize = parseFloat(traceGroup.originalStyle.fontSize);
+    const fontSize = parseFloat(traceGroup.computedStyle.fontSize);
 
-    let letterSpacing = traceGroup.originalStyle.letterSpacing;
+    let letterSpacing = traceGroup.computedStyle.letterSpacing;
     if (letterSpacing === 'normal') {
       letterSpacing = 0;
     } else {
       letterSpacing = parseFloat(letterSpacing);
     }
-    let wordSpacing = traceGroup.originalStyle.wordSpacing;
+    let wordSpacing = traceGroup.computedStyle.wordSpacing;
     if (wordSpacing === 'normal') {
       wordSpacing = 0;
     } else {
@@ -258,23 +258,23 @@ async function optimize(page, traceGroups) {
         node => ({ ...window.getComputedStyle(node) }),
         trace.node
       );
-      trace.originalStyle = _.pick(
+      trace.computedStyle = _.pick(
         computedStyle,
         fontRelatedProps.map(_.camelCase)
       );
     }
     const traceGroups = Object.values(
       _.groupBy(traces, trace =>
-        Object.values(trace.originalStyle).join('\x1e')
+        Object.values(trace.computedStyle).join('\x1e')
       )
     )
       .map(traces => ({
-        originalStyle: traces[0].originalStyle,
+        computedStyle: traces[0].computedStyle,
         elementHandles: _.map(traces, 'node'),
         traces
       }))
       .filter(traceGroup =>
-        /merriweather/i.test(traceGroup.originalStyle.fontFamily)
+        /merriweather/i.test(traceGroup.computedStyle.fontFamily)
       );
     if (traceGroups.length === 0) {
       throw new Error('No webfonts to optimize');
