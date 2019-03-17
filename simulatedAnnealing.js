@@ -42,5 +42,5 @@ module.exports = async function({
     }
     currentTemp = getTemp(currentTemp);
   }
-  return bestState;
+  return [bestState, bestEnergy];
 };
