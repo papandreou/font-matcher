@@ -9,6 +9,7 @@ const compareImages = require('resemblejs/compareImages');
 const simulatedAnnealing = require('./simulatedAnnealing');
 const getWordPositions = require('./getWordPositions');
 const shorthandify = require('./shorthandify');
+const fontFamilyParser = require('font-family-papandreou');
 const { pickone, integer } = require('chance-generators');
 
 const fontRelatedProps = [
@@ -242,6 +243,12 @@ async function optimize(page, traceGroups) {
     );
 
     await page.goto(urlTools.fsFilePathToFileUrl(fileName));
+    const availableFontFamilies = new Set(
+      await page.evaluate(() =>
+        Array.from(document.fonts).map(font => font.family)
+      )
+    );
+
     await page.addScriptTag({
       url: urlTools.fsFilePathToFileUrl(
         pathModule.resolve(
@@ -264,30 +271,48 @@ async function optimize(page, traceGroups) {
       fontRelatedProps
     );
     const traces = await transferResults(jsHandle);
-
+    const webfontTraces = [];
     for (const trace of traces) {
-      const computedStyle = await page.evaluate(
-        node => ({ ...window.getComputedStyle(node) }),
-        trace.node
-      );
-      trace.computedStyle = _.pick(
-        computedStyle,
-        fontRelatedProps.map(_.camelCase)
-      );
+      const fontFamily = trace.props['font-family'];
+      if (fontFamily) {
+        const fontFamilies = fontFamilyParser.parse(fontFamily);
+        if (fontFamilies && availableFontFamilies.has(fontFamilies[0])) {
+          trace.fontFamily = fontFamilies[0];
+          if (fontFamilies.length > 1) {
+            // Intepret the last entry as an explicit fallback:
+            trace.fallbackFontFamily = _.last(fontFamilies);
+          } else {
+            trace.fallbackFontFamily = 'sans-serif';
+            // TODO: Pick best matching web safe font:
+            // https://github.com/papandreou/font-matcher/pull/1
+          }
+
+          const computedStyle = await page.evaluate(
+            node => ({ ...window.getComputedStyle(node) }),
+            trace.node
+          );
+          trace.computedStyle = _.pick(
+            computedStyle,
+            fontRelatedProps.map(_.camelCase)
+          );
+          webfontTraces.push(trace);
+        }
+      }
     }
     const traceGroups = Object.values(
-      _.groupBy(traces, trace =>
-        Object.values(trace.computedStyle).join('\x1e')
+      _.groupBy(
+        webfontTraces,
+        trace =>
+          `${trace.fallbackFontFamily}\x1e${Object.values(
+            trace.computedStyle
+          ).join('\x1e')}`
       )
-    )
-      .map(traces => ({
-        computedStyle: traces[0].computedStyle,
-        elementHandles: _.map(traces, 'node'),
-        traces
-      }))
-      .filter(traceGroup =>
-        /merriweather/i.test(traceGroup.computedStyle.fontFamily)
-      );
+    ).map(traces => ({
+      computedStyle: traces[0].computedStyle,
+      elementHandles: _.map(traces, 'node'),
+      traces
+    }));
+
     if (traceGroups.length === 0) {
       throw new Error('No webfonts to optimize');
     }
