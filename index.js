@@ -113,12 +113,25 @@ async function optimize(page, traceGroups) {
 
     const fontSize = parseFloat(traceGroup.originalStyle.fontSize);
 
+    let letterSpacing = traceGroup.originalStyle.letterSpacing;
+    if (letterSpacing === 'normal') {
+      letterSpacing = 0;
+    } else {
+      letterSpacing = parseFloat(letterSpacing);
+    }
+    let wordSpacing = traceGroup.originalStyle.wordSpacing;
+    if (wordSpacing === 'normal') {
+      wordSpacing = 0;
+    } else {
+      wordSpacing = parseFloat(wordSpacing);
+    }
+
     traceGroup.boundsByProp = {
       fontSize: [Math.round(fontSize / 2), Math.round(fontSize * 2)],
       lineHeight: [0, 5],
       fontWeight: [100, 900],
-      letterSpacing: [-2, 2],
-      wordSpacing: [-2, 2]
+      letterSpacing: [letterSpacing - 3, letterSpacing + 3],
+      wordSpacing: [wordSpacing - 3, wordSpacing + 3]
     };
 
     traceGroup.numStepsByProp = {};
