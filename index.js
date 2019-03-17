@@ -193,7 +193,7 @@ async function optimize(page, traceGroups) {
       );
     },
     async getEnergy(state) {
-      let sumDistances = 0;
+      let energy = 0;
       for (const [i, traceGroup] of traceGroups.entries()) {
         const { elementHandles, referenceWordPositions } = traceGroup;
 
@@ -207,15 +207,15 @@ async function optimize(page, traceGroups) {
           const wordPositions = await getWordPositions(page, elementHandle);
 
           for (const [k, wordPosition] of wordPositions.entries()) {
-            sumDistances += distance(
-              wordPosition,
-              referenceWordPositions[j][k]
-            );
+            const originalPosition = referenceWordPositions[j][k];
+            energy +=
+              originalPosition.width *
+              originalPosition.height *
+              distance(wordPosition, originalPosition);
           }
         }
       }
-
-      return sumDistances;
+      return energy;
 
       // The image comparison is quite slow, skip it for now:
       const { rawMisMatchPercentage } = await compareImages(
