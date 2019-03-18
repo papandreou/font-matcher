@@ -11,6 +11,7 @@ const findClosestWebSafeFont = require('./findClosestWebSafeFont');
 const shorthandify = require('./shorthandify');
 const fontFamilyParser = require('font-family-papandreou');
 const { pickone, integer } = require('chance-generators');
+const SuperCollider = require('./SuperCollider');
 
 const fontRelatedProps = [
   'font-family',
@@ -96,13 +97,8 @@ async function optimize(page, traceGroups) {
 
   const pickTraceGroupNumber = integer({ min: 0, max: traceGroups.length - 1 });
   const pickSign = pickone([-1, 1]);
-  for (const traceGroup of traceGroups) {
-    traceGroup.referenceWordPositions = await Promise.all(
-      traceGroup.elementHandles.map(elementHandle =>
-        getWordPositions(page, elementHandle)
-      )
-    );
 
+  for (const traceGroup of traceGroups) {
     const fontSize = parseFloat(traceGroup.computedStyle.fontSize);
     let lineHeight = traceGroup.computedStyle.lineHeight;
     if (lineHeight === 'normal') {
@@ -215,7 +211,7 @@ async function optimize(page, traceGroups) {
     const fileName = pathModule.resolve(
       __dirname,
       'testdata',
-      'multipleSizesNoExplicitFallback',
+      'independentGroups',
       'index.html'
     );
 
@@ -298,7 +294,68 @@ async function optimize(page, traceGroups) {
     if (traceGroups.length === 0) {
       throw new Error('No webfonts to optimize');
     }
-    await optimize(page, traceGroups);
+
+    for (const traceGroup of traceGroups) {
+      traceGroup.referenceWordPositions = await Promise.all(
+        traceGroup.elementHandles.map(elementHandle =>
+          getWordPositions(page, elementHandle)
+        )
+      );
+    }
+
+    const superCollider = new SuperCollider(traceGroups);
+
+    // Find out which trace groups affect the positioning of others
+    for (const traceGroup of traceGroups) {
+      const fontSize = `${4 * parseInt(traceGroup.computedStyle.fontSize)}px`;
+      const lineHeight = `${4 *
+        parseInt(traceGroup.computedStyle.lineHeight)}px`;
+
+      const oldStyles = await page.evaluate(
+        (fontSize, lineHeight, ...elements) => {
+          const oldStyles = [];
+          for (const element of elements) {
+            oldStyles.push([element.style.fontSize, element.style.lineHeight]);
+            element.style.fontSize = fontSize;
+            element.style.lineHeight = lineHeight;
+          }
+          return oldStyles;
+        },
+        fontSize,
+        lineHeight,
+        ...traceGroup.elementHandles
+      );
+
+      for (const otherTraceGroup of traceGroups) {
+        if (!superCollider.haveCollision(traceGroup, otherTraceGroup)) {
+          const wordPositionsNow = await Promise.all(
+            otherTraceGroup.elementHandles.map(elementHandle =>
+              getWordPositions(page, elementHandle)
+            )
+          );
+
+          if (
+            !_.isEqual(otherTraceGroup.referenceWordPositions, wordPositionsNow)
+          ) {
+            superCollider.registerCollision(traceGroup, otherTraceGroup);
+          }
+        }
+      }
+      await page.evaluate(
+        (oldStyles, ...elements) => {
+          for (const [i, element] of elements.entries()) {
+            element.style.fontSize = oldStyles[i][0];
+            element.style.lineHeight = oldStyles[i][1];
+          }
+        },
+        oldStyles,
+        ...traceGroup.elementHandles
+      );
+    }
+
+    for (const distinctTraceGroupSet of superCollider) {
+      await optimize(page, [...distinctTraceGroupSet]);
+    }
   } finally {
     await browser.close();
   }
