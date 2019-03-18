@@ -1,10 +1,12 @@
 const findClosestWebSafeFont = require('../findClosestWebSafeFont');
 const puppeteer = require('puppeteer');
 
+const visual = /^(?:1|on|yes|true)$/i.test(process.env.VISUAL);
+
 describe('findClosestWebSafeFont', function() {
   let browser;
   before(async function() {
-    browser = await puppeteer.launch({ headless: false });
+    browser = await puppeteer.launch({ headless: !visual });
   });
   after(async function() {
     await browser.close();
@@ -30,7 +32,7 @@ describe('findClosestWebSafeFont', function() {
         );
 
         expect(
-          await findClosestWebSafeFont(webfontName, page),
+          await findClosestWebSafeFont(webfontName, page, visual),
           'to equal',
           fallbackName
         );

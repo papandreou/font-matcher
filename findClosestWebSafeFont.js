@@ -73,7 +73,13 @@ async function compareRenderings(
   return difference;
 }
 
-async function compareGlyphs(text, fontname1, fontname2, page) {
+async function findSmallestDifference(
+  text,
+  fontname1,
+  fontname2,
+  page,
+  visual
+) {
   const initialState = {
     yOffset: 0,
     xOffset: 0,
@@ -112,7 +118,7 @@ async function compareGlyphs(text, fontname1, fontname2, page) {
       return prevTemperature - 0.08;
     },
     getEnergy(state) {
-      return compareRenderings(text, fontname1, fontname2, page, state);
+      return compareRenderings(text, fontname1, fontname2, page, state, visual);
     },
     onNewBestState(bestState, bestEnergy) {}
   });
@@ -146,14 +152,21 @@ const websafeFontNames = [
   'Zapfino'
 ];
 
-async function findClosestWebSafeFont(webfontName, page) {
+async function findClosestWebSafeFont(webfontName, page, visual) {
   let lowestDifference;
   let bestWebsafeFontName;
   for (const websafeFontName of [...websafeFontNames, ...genericFonts]) {
     if (!genericFonts.includes(websafeFontName)) {
       const differences = await Promise.all(
         genericFonts.map(genericFont =>
-          compareRenderings('BESbwy', websafeFontName, genericFont, page)
+          compareRenderings(
+            'BESbwy',
+            websafeFontName,
+            genericFont,
+            page,
+            undefined,
+            visual
+          )
         )
       );
       if (differences.some(difference => difference === 0)) {
@@ -163,11 +176,12 @@ async function findClosestWebSafeFont(webfontName, page) {
         continue;
       }
     }
-    const difference = await compareGlyphs(
+    const difference = await findSmallestDifference(
       'BESbwy',
       webfontName,
       websafeFontName,
-      page
+      page,
+      visual
     );
     if (lowestDifference === undefined || difference < lowestDifference) {
       lowestDifference = difference;
