@@ -1,4 +1,4 @@
-const SuperCollider = require('../SuperCollider');
+const SuperCollider = require('../lib/SuperCollider');
 const expect = require('unexpected');
 
 describe('SuperCollider', function() {

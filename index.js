@@ -5,13 +5,13 @@ const puppeteer = require('puppeteer');
 const pathModule = require('path');
 const writeFile = require('util').promisify(require('fs').writeFile);
 const _ = require('lodash');
-const simulatedAnnealing = require('./simulatedAnnealing');
-const getWordPositions = require('./getWordPositions');
-const findClosestWebSafeFont = require('./findClosestWebSafeFont');
-const shorthandify = require('./shorthandify');
+const simulatedAnnealing = require('./lib/simulatedAnnealing');
+const getWordPositions = require('./lib/getWordPositions');
+const findClosestWebSafeFont = require('./lib/findClosestWebSafeFont');
+const shorthandify = require('./lib/shorthandify');
 const fontFamilyParser = require('font-family-papandreou');
 const { pickone, integer } = require('chance-generators');
-const SuperCollider = require('./SuperCollider');
+const SuperCollider = require('./lib/SuperCollider');
 
 const fontRelatedProps = [
   'font-family',

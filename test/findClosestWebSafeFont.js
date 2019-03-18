@@ -1,4 +1,4 @@
-const findClosestWebSafeFont = require('../findClosestWebSafeFont');
+const findClosestWebSafeFont = require('../lib/findClosestWebSafeFont');
 const puppeteer = require('puppeteer');
 
 const visual = /^(?:1|on|yes|true)$/i.test(process.env.VISUAL);
