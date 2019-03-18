@@ -39,7 +39,7 @@ describe('findClosestWebSafeFont', function() {
 
   this.timeout(99999999);
 
-  it('should Open Sans as a fallback for Merriweather', async function() {
+  it('should come up with Open Sans as a fallback for Merriweather', async function() {
     await expect('Merriweather', 'to result in fallback', 'serif');
   });
 });
