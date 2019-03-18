@@ -33,7 +33,7 @@ async function transferResults(jsHandle) {
 }
 // linear temperature decreasing
 function getTemp(prevTemperature) {
-  return prevTemperature - 0.001;
+  return prevTemperature - 0.03;
 }
 
 const incrementByProp = {
