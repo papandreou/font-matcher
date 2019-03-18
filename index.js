@@ -8,6 +8,7 @@ const _ = require('lodash');
 const compareImages = require('resemblejs/compareImages');
 const simulatedAnnealing = require('./simulatedAnnealing');
 const getWordPositions = require('./getWordPositions');
+const findClosestWebSafeFont = require('./findClosestWebSafeFont');
 const shorthandify = require('./shorthandify');
 const fontFamilyParser = require('font-family-papandreou');
 const { pickone, integer } = require('chance-generators');
@@ -84,9 +85,12 @@ function stringifyProp(prop, value, boundsByProp) {
   return `${numStr}${unit}`;
 }
 
-function stateToStyle(state, { boundsByProp, computedStyle }) {
+function stateToStyle(
+  state,
+  { boundsByProp, computedStyle, fallbackFontFamily }
+) {
   const style = {
-    fontFamily: 'Georgia',
+    fontFamily: fallbackFontFamily,
     fontStyle: computedStyle.fontStyle
   };
   for (const prop of Object.keys(incrementByProp)) {
@@ -238,7 +242,7 @@ async function optimize(page, traceGroups) {
     const fileName = pathModule.resolve(
       __dirname,
       'testdata',
-      'multipleSizes',
+      'multipleSizesNoExplicitFallback',
       'index.html'
     );
 
@@ -282,9 +286,10 @@ async function optimize(page, traceGroups) {
             // Intepret the last entry as an explicit fallback:
             trace.fallbackFontFamily = _.last(fontFamilies);
           } else {
-            trace.fallbackFontFamily = 'sans-serif';
-            // TODO: Pick best matching web safe font:
-            // https://github.com/papandreou/font-matcher/pull/1
+            trace.fallbackFontFamily = await findClosestWebSafeFont(
+              trace.fontFamily,
+              page
+            );
           }
 
           const computedStyle = await page.evaluate(
@@ -310,7 +315,11 @@ async function optimize(page, traceGroups) {
     ).map(traces => ({
       computedStyle: traces[0].computedStyle,
       elementHandles: _.map(traces, 'node'),
-      traces
+      traces,
+      // FIXME: This assumes that all the traces have the same fallback font-family,
+      // which is not guaranteed to be true:
+      fontFamily: traces[0].fontFamily,
+      fallbackFontFamily: traces[0].fallbackFontFamily
     }));
 
     if (traceGroups.length === 0) {
