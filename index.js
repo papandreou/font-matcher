@@ -5,7 +5,6 @@ const puppeteer = require('puppeteer');
 const pathModule = require('path');
 const writeFile = require('util').promisify(require('fs').writeFile);
 const _ = require('lodash');
-const compareImages = require('resemblejs/compareImages');
 const simulatedAnnealing = require('./simulatedAnnealing');
 const getWordPositions = require('./getWordPositions');
 const findClosestWebSafeFont = require('./findClosestWebSafeFont');
@@ -32,24 +31,6 @@ async function transferResults(jsHandle) {
   }
   return results;
 }
-
-const resembleJsCompareOptions = {
-  output: {
-    errorColor: {
-      red: 255,
-      green: 0,
-      blue: 255
-    },
-    errorType: 'movement',
-    transparency: 0.3,
-    largeImageThreshold: 1200,
-    useCrossOrigin: false,
-    outputDiff: true
-  },
-  scaleToSameSize: true,
-  ignore: 'antialiasing'
-};
-
 // linear temperature decreasing
 function getTemp(prevTemperature) {
   return prevTemperature - 0.001;
@@ -221,14 +202,6 @@ async function optimize(page, traceGroups) {
         }
       }
       return energy;
-
-      // The image comparison is quite slow, skip it for now:
-      const { rawMisMatchPercentage } = await compareImages(
-        await page.screenshot(),
-        referenceScreenshot,
-        resembleJsCompareOptions
-      );
-      return sumDistances + rawMisMatchPercentage;
     }
   });
 }
