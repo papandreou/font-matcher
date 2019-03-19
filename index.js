@@ -160,20 +160,6 @@ async function optimize(page, traceGroups) {
       return newState;
     },
     getTemp,
-    async onNewBestState(bestState, bestScore) {
-      console.log(
-        'new best',
-        bestScore,
-        bestState.map((traceGroupState, i) =>
-          shorthandify(stateToStyle(traceGroupState, traceGroups[i]))
-        )
-      );
-      await writeFile('best.png', await page.screenshot());
-      page.evaluate(
-        bestScore => (document.title = `Best: ${bestScore}`),
-        bestScore
-      );
-    },
     async getEnergy(state) {
       let energy = 0;
       for (const [i, traceGroup] of traceGroups.entries()) {
