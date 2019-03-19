@@ -27,8 +27,7 @@ describe('findClosestWebSafeFont', function() {
               </head>
               <body></body>
             </html>
-          `,
-          'utf-8'
+          `
         );
 
         expect(
