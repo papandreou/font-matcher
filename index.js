@@ -22,6 +22,16 @@ const fontRelatedProps = [
   'line-height'
 ];
 
+async function evaluateLocalScript(page, path) {
+  const scriptTag = await page.addScriptTag({
+    url: urlTools.fsFilePathToFileUrl(path)
+  });
+
+  await page.evaluate(scriptTag => {
+    scriptTag.parentNode.removeChild(scriptTag);
+  }, scriptTag);
+}
+
 async function transferResults(jsHandle) {
   const results = await jsHandle.jsonValue();
   for (const [i, result] of results.entries()) {
@@ -219,17 +229,17 @@ async function optimize(page, traceGroups) {
       )
     );
 
-    await page.addScriptTag({
-      url: urlTools.fsFilePathToFileUrl(
-        pathModule.resolve(
-          __dirname,
-          'node_modules',
-          'font-tracer',
-          'dist',
-          'fontTracer.browser.js'
-        )
+    await evaluateLocalScript(
+      page,
+      pathModule.resolve(
+        __dirname,
+        'node_modules',
+        'font-tracer',
+        'dist',
+        'fontTracer.browser.js'
       )
-    });
+    );
+
     const jsHandle = await page.evaluateHandle(
       /* global fontTracer */
       /* istanbul ignore next */
