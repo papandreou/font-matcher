@@ -294,8 +294,42 @@ async function optimize(page, traceGroups) {
       page
     );
 
+    await page.addScriptTag({
+      url: urlTools.fsFilePathToFileUrl(
+        pathModule.resolve(
+          __dirname,
+          'node_modules',
+          'css-selector-generator',
+          'build',
+          'css-selector-generator.js'
+        )
+      )
+    });
+
     for (const distinctTraceGroupSet of distinctTraceGroupSets) {
-      await optimize(page, [...distinctTraceGroupSet]);
+      const traceGroups = [...distinctTraceGroupSet];
+      const [bestState, bestEnergy] = await optimize(page, traceGroups);
+
+      for (const [i, traceGroup] of traceGroups.entries()) {
+        const selectors = await Promise.all(
+          traceGroup.elementHandles.map(elementHandle =>
+            page.evaluate(
+              element =>
+                /* global CssSelectorGenerator */
+                new CssSelectorGenerator().getSelector(element),
+              elementHandle
+            )
+          )
+        );
+        let cssText = `${selectors.join(', ')} {\n  /* ${bestEnergy} */\n`;
+        for (const [prop, value] of Object.entries(
+          shorthandify(stateToStyle(bestState[i], traceGroups[0]))
+        )) {
+          cssText += `  ${_.kebabCase(prop)}: ${value};\n`;
+        }
+        cssText += '}';
+        console.log(cssText);
+      }
     }
   } finally {
     await browser.close();
