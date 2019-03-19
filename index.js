@@ -3,7 +3,6 @@
 const urlTools = require('urltools');
 const puppeteer = require('puppeteer');
 const pathModule = require('path');
-const writeFile = require('util').promisify(require('fs').writeFile);
 const _ = require('lodash');
 const simulatedAnnealing = require('./lib/simulatedAnnealing');
 const getWordPositions = require('./lib/getWordPositions');
@@ -88,6 +87,19 @@ function distance(a, b) {
   );
 }
 
+async function applyStateToPage(traceGroups, state, page) {
+  for (const [i, traceGroup] of traceGroups.entries()) {
+    const style = stateToStyle(state[i], traceGroup);
+    for (const elementHandle of traceGroup.elementHandles) {
+      await page.evaluate(
+        (element, style) => Object.assign(element.style, style),
+        elementHandle,
+        style
+      );
+    }
+  }
+}
+
 async function optimize(page, traceGroups) {
   const referenceScreenshot = await page.screenshot();
   const pickPropertyToMutate = pickone(Object.keys(incrementByProp));
@@ -142,7 +154,7 @@ async function optimize(page, traceGroups) {
     return initialStateForGroup;
   });
 
-  return simulatedAnnealing({
+  const [bestState, bestEnergy] = await simulatedAnnealing({
     initialState,
     tempMax: 15,
     tempMin: 0.001,
@@ -161,17 +173,12 @@ async function optimize(page, traceGroups) {
     },
     getTemp,
     async getEnergy(state) {
+      await applyStateToPage(traceGroups, state, page);
       let energy = 0;
-      for (const [i, traceGroup] of traceGroups.entries()) {
+      for (const traceGroup of traceGroups) {
         const { elementHandles, referenceWordPositions } = traceGroup;
 
-        const style = stateToStyle(state[i], traceGroup);
         for (const [j, elementHandle] of elementHandles.entries()) {
-          await page.evaluate(
-            (element, style) => Object.assign(element.style, style),
-            elementHandle,
-            style
-          );
           const wordPositions = await getWordPositions(page, elementHandle);
 
           for (const [k, wordPosition] of wordPositions.entries()) {
@@ -186,6 +193,10 @@ async function optimize(page, traceGroups) {
       return energy;
     }
   });
+
+  await applyStateToPage(traceGroups, bestState, page);
+
+  return [bestState, bestEnergy];
 }
 
 (async () => {
@@ -294,43 +305,13 @@ async function optimize(page, traceGroups) {
       page
     );
 
-    await page.addScriptTag({
-      url: urlTools.fsFilePathToFileUrl(
-        pathModule.resolve(
-          __dirname,
-          'node_modules',
-          'css-selector-generator',
-          'build',
-          'css-selector-generator.js'
-        )
-      )
-    });
-
     for (const distinctTraceGroupSet of distinctTraceGroupSets) {
-      const traceGroups = [...distinctTraceGroupSet];
-      const [bestState, bestEnergy] = await optimize(page, traceGroups);
-
-      for (const [i, traceGroup] of traceGroups.entries()) {
-        const selectors = await Promise.all(
-          traceGroup.elementHandles.map(elementHandle =>
-            page.evaluate(
-              element =>
-                /* global CssSelectorGenerator */
-                new CssSelectorGenerator().getSelector(element),
-              elementHandle
-            )
-          )
-        );
-        let cssText = `${selectors.join(', ')} {\n  /* ${bestEnergy} */\n`;
-        for (const [prop, value] of Object.entries(
-          shorthandify(stateToStyle(bestState[i], traceGroups[0]))
-        )) {
-          cssText += `  ${_.kebabCase(prop)}: ${value};\n`;
-        }
-        cssText += '}';
-        console.log(cssText);
-      }
+      await optimize(page, [...distinctTraceGroupSet]);
     }
+    await page.evaluate(() => {
+      document.documentElement.style.backgroundImage = null;
+    });
+    console.log(await page.content());
   } finally {
     await browser.close();
   }

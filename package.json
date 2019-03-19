@@ -29,7 +29,6 @@
   },
   "dependencies": {
     "chance-generators": "^3.5.1",
-    "css-selector-generator": "^1.2.0",
     "font-family-papandreou": "^0.2.0-patch1",
     "font-tracer": "^1.0.1",
     "lodash": "^4.17.11",
