@@ -336,13 +336,46 @@ async function optimize(page, traceGroups) {
       page
     );
 
+    console.log(
+      `<script>(${function() {
+        if (document.fonts) {
+          const promisesByFamily = {};
+          document.fonts.forEach(function(fontFace) {
+            (promisesByFamily[fontFace.family] =
+              promisesByFamily[fontFace.family] || []).push(fontFace.loaded);
+          });
+          for (const [family, promises] of Object.entries(promisesByFamily)) {
+            const className = `awaiting-${family.replace(/ /g, '_')}`;
+            document.documentElement.classList.add(className);
+            Promise.race(promises).then(() => {
+              console.log('loaded');
+              document.documentElement.classList.remove(className);
+            });
+          }
+        }
+      }.toString()})();</script>`
+    );
+    console.log('<style>');
     for (const distinctTraceGroupSet of distinctTraceGroupSets) {
-      await optimize(page, [...distinctTraceGroupSet]);
+      const [bestState, bestEnergy] = await optimize(page, [
+        ...distinctTraceGroupSet
+      ]);
+
+      for (const [i, traceGroup] of [...distinctTraceGroupSet].entries()) {
+        const cssProps = Object.entries(stateToStyle(bestState[i], traceGroup))
+          .map(([key, value]) => `  ${_.kebabCase(key)}: ${value};`)
+          .join('\n');
+        console.log(
+          `.awaiting-${traceGroup.fontFamily.replace(/ /g, '_')} ${
+            traceGroup.cssSelector
+          } { /* ${bestEnergy} */\n${cssProps}\n}`
+        );
+      }
     }
+    console.log('</style>');
     await page.evaluate(() => {
       document.documentElement.style.backgroundImage = null;
     });
-    console.log(await page.content());
   } finally {
     await browser.close();
   }
