@@ -302,12 +302,33 @@ async function optimize(page, traceGroups) {
       throw new Error('No webfonts to optimize');
     }
 
+    await evaluateLocalScript(
+      page,
+      pathModule.resolve(
+        __dirname,
+        'node_modules',
+        'optimal-select',
+        'dist',
+        'optimal-select.js'
+      )
+    );
     for (const traceGroup of traceGroups) {
       traceGroup.referenceWordPositions = await Promise.all(
         traceGroup.elementHandles.map(elementHandle =>
           getWordPositions(page, elementHandle)
         )
       );
+
+      traceGroup.cssSelector = await page.evaluate((...elements) => {
+        /* global OptimalSelect */
+        return OptimalSelect.getMultiSelector(elements, {
+          ignore: {
+            attribute(name, value, defaultPredicate) {
+              return name === 'style';
+            }
+          }
+        });
+      }, ...traceGroup.elementHandles);
     }
 
     const distinctTraceGroupSets = await findDistinctTraceGroupSets(
