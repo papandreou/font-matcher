@@ -31,6 +31,7 @@
   "dependencies": {
     "chance-generators": "^3.5.1",
     "font-family-papandreou": "^0.2.0-patch1",
+    "font-snapper": "^1.0.0",
     "font-tracer": "^1.0.1",
     "lodash": "^4.17.11",
     "optimal-select": "^4.0.1",

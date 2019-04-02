@@ -11,6 +11,7 @@ const shorthandify = require('./lib/shorthandify');
 const findDistinctTraceGroupSets = require('./lib/findDistinctTraceGroupSets');
 const fontFamilyParser = require('font-family-papandreou');
 const { pickone, integer } = require('chance-generators');
+const fontSnapper = require('font-snapper');
 
 const fontRelatedProps = [
   'font-family',
@@ -230,6 +231,21 @@ async function optimize(page, traceGroups) {
       )
     );
 
+    // With kebab-case property names as font-snapper needs:
+    const availableFonts = _.uniqWith(
+      await page.evaluate(() =>
+        Array.from(document.fonts).map(
+          ({ family, style, weight, stretch }) => ({
+            'font-family': family,
+            'font-style': style,
+            'font-weight': weight,
+            'font-stretch': stretch
+          })
+        )
+      ),
+      _.isEqual
+    );
+
     await evaluateLocalScript(
       page,
       pathModule.resolve(
@@ -273,10 +289,27 @@ async function optimize(page, traceGroups) {
             node => ({ ...window.getComputedStyle(node) }),
             trace.node
           );
+
+          const snapped = fontSnapper(availableFonts, {
+            'font-family': computedStyle.fontFamily,
+            'font-style': computedStyle.fontStyle,
+            'font-weight': computedStyle.fontWeight,
+            'font-stretch': computedStyle.fontStretch
+          });
+
+          // Pretend that computedStyle contained the snapped values, as that makes the subsequent steps easier:
+          Object.assign(computedStyle, {
+            fontFamily: snapped['font-family'],
+            fontStyle: snapped['font-style'],
+            fontWeight: snapped['font-weight'],
+            fontStretch: snapped['font-stretch']
+          });
+
           trace.computedStyle = _.pick(
             computedStyle,
             fontRelatedProps.map(_.camelCase)
           );
+
           webfontTraces.push(trace);
         }
       }
@@ -351,20 +384,30 @@ async function optimize(page, traceGroups) {
 
     console.log(
       `<script>(${function() {
+        const fontStretchValues = {
+          'ultra-condensed': '50%',
+          'extra-condensed': '62.5%',
+          condensed: '75%',
+          'semi-condensed': '87.5%',
+          normal: '100%',
+          'semi-expanded': '112.5%',
+          expanded: '125%',
+          'extra-expanded': '150%',
+          'ultra-expanded': '200%'
+        };
         if (document.fonts) {
-          const promisesByFamily = {};
           document.fonts.forEach(function(fontFace) {
-            (promisesByFamily[fontFace.family] =
-              promisesByFamily[fontFace.family] || []).push(fontFace.loaded);
-          });
-          for (const [family, promises] of Object.entries(promisesByFamily)) {
-            const className = `awaiting-${family.replace(/ /g, '_')}`;
+            const id = `${fontFace.family.replace(/ /g, '_')}-${
+              fontFace.style
+            }-${fontFace.weight}-${(
+              fontStretchValues[fontFace.stretch] || fontFace.stretch
+            ).replace(/%$/, '')}`;
+            const className = `awaiting-${id}`;
             document.documentElement.classList.add(className);
-            Promise.race(promises).then(() => {
-              console.log('loaded');
+            fontFace.loaded.then(() => {
               document.documentElement.classList.remove(className);
             });
-          }
+          });
         }
       }.toString()})();</script>`
     );
@@ -378,8 +421,13 @@ async function optimize(page, traceGroups) {
         const cssProps = Object.entries(stateToStyle(bestState[i], traceGroup))
           .map(([key, value]) => `  ${_.kebabCase(key)}: ${value};`)
           .join('\n');
+        const id = `${traceGroup.fontFamily.replace(/ /g, '_')}-${
+          traceGroup.computedStyle.fontStyle
+        }-${
+          traceGroup.computedStyle.fontWeight
+        }-${traceGroup.computedStyle.fontStretch.replace(/%$/, '')}`;
         console.log(
-          `.awaiting-${traceGroup.fontFamily.replace(/ /g, '_')} ${
+          `.awaiting-${id} ${
             traceGroup.cssSelector
           } { /* ${bestEnergy} */\n${cssProps}\n}`
         );
