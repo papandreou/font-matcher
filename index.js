@@ -322,13 +322,25 @@ async function optimize(page, traceGroups) {
 
       traceGroup.cssSelector = await page.evaluate((...elements) => {
         /* global OptimalSelect */
-        return OptimalSelect.getMultiSelector(elements, {
+        const cssSelector = OptimalSelect.getMultiSelector(elements, {
           ignore: {
-            attribute(name, value, defaultPredicate) {
+            attribute(name) {
               return name === 'style';
             }
           }
         });
+        // Sanity check the selector:
+        const queriedElements = [...document.querySelectorAll(cssSelector)];
+        if (
+          queriedElements.length !== elements.length ||
+          !elements.every(element => queriedElements.includes(element))
+        ) {
+          throw new Error(
+            `OptimalSelect produced a selector that does not uniquely identify the elements of the trace group`
+          );
+        }
+
+        return cssSelector;
       }, ...traceGroup.elementHandles);
     }
 
