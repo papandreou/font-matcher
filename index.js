@@ -17,6 +17,7 @@ const fontRelatedProps = [
   'font-style',
   'font-weight',
   'font-size',
+  'font-stretch',
   'word-spacing',
   'letter-spacing',
   'line-height'
