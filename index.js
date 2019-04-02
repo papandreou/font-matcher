@@ -12,6 +12,19 @@ const findDistinctTraceGroupSets = require('./lib/findDistinctTraceGroupSets');
 const fontFamilyParser = require('font-family-papandreou');
 const { pickone, integer } = require('chance-generators');
 const fontSnapper = require('font-snapper');
+const cssFontWeightNames = require('css-font-weight-names');
+
+const fontStretchValues = {
+  'ultra-condensed': '50%',
+  'extra-condensed': '62.5%',
+  condensed: '75%',
+  'semi-condensed': '87.5%',
+  normal: '100%',
+  'semi-expanded': '112.5%',
+  expanded: '125%',
+  'extra-expanded': '150%',
+  'ultra-expanded': '200%'
+};
 
 const fontRelatedProps = [
   'font-family',
@@ -301,10 +314,13 @@ async function optimize(page, traceGroups) {
           Object.assign(computedStyle, {
             fontFamily: snapped['font-family'],
             fontStyle: snapped['font-style'],
-            fontWeight: snapped['font-weight'],
-            fontStretch: snapped['font-stretch']
+            fontWeight:
+              cssFontWeightNames[snapped['font-weight']] ||
+              snapped['font-weight'],
+            fontStretch:
+              fontStretchValues[snapped['font-stretch']] ||
+              snapped['font-stretch']
           });
-
           trace.computedStyle = _.pick(
             computedStyle,
             fontRelatedProps.map(_.camelCase)
