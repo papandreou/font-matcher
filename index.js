@@ -434,7 +434,9 @@ async function optimize(page, traceGroups) {
       ]);
 
       for (const [i, traceGroup] of [...distinctTraceGroupSet].entries()) {
-        const cssProps = Object.entries(stateToStyle(bestState[i], traceGroup))
+        const style = stateToStyle(bestState[i], traceGroup);
+        style.fontFamily = `${traceGroup.fontFamily}, ${style.fontFamily}`;
+        const cssProps = Object.entries(style)
           .map(([key, value]) => `  ${_.kebabCase(key)}: ${value};`)
           .join('\n');
         const id = `${traceGroup.fontFamily.replace(/ /g, '_')}-${
